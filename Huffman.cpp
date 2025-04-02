@@ -2,138 +2,145 @@
 using namespace std;
 
 // Node class for the Huffman Tree
-class Node {
+class TreeNode {
 public:
-    char data;
-    unsigned freq;
-    Node* left;
-    Node* right;
+    char character;
+    unsigned frequency;
+    TreeNode* leftChild;
+    TreeNode* rightChild;
 
-    Node(char data, unsigned freq) {
-        this->data = data;
-        this->freq = freq;
-        this->left = nullptr;
-        this->right = nullptr;
+    TreeNode(char character, unsigned frequency) {
+        this->character = character;
+        this->frequency = frequency;
+        this->leftChild = nullptr;
+        this->rightChild = nullptr;
     }
 };
 
-// MinHeap implementation using an array
-class MinHeap {
+// MinHeap implementation using arrays (without using `std::vector` or `std::queue`)
+class MinPriorityQueue {
 private:
-    Node** heapArray;
-    int capacity;
-    int heapSize;
+    TreeNode** nodesArray;
+    int maxSize;
+    int currentSize;
 
-    void heapifyDown(int idx) {
-        int smallest = idx;
-        int left = 2 * idx + 1;
-        int right = 2 * idx + 2;
+    void heapifyDown(int index) {
+        int smallest = index;
+        int leftChild = 2 * index + 1;
+        int rightChild = 2 * index + 2;
 
-        if (left < heapSize && heapArray[left]->freq < heapArray[smallest]->freq)
-            smallest = left;
-        if (right < heapSize && heapArray[right]->freq < heapArray[smallest]->freq)
-            smallest = right;
-        if (smallest != idx) {
-            swap(heapArray[idx], heapArray[smallest]);
+        if (leftChild < currentSize && nodesArray[leftChild]->frequency < nodesArray[smallest]->frequency)
+            smallest = leftChild;
+        if (rightChild < currentSize && nodesArray[rightChild]->frequency < nodesArray[smallest]->frequency)
+            smallest = rightChild;
+        if (smallest != index) {
+            swap(nodesArray[index], nodesArray[smallest]);
             heapifyDown(smallest);
         }
     }
 
-    void heapifyUp(int idx) {
-        int parent = (idx - 1) / 2;
-        if (idx && heapArray[idx]->freq < heapArray[parent]->freq) {
-            swap(heapArray[idx], heapArray[parent]);
+    void heapifyUp(int index) {
+        int parent = (index - 1) / 2;
+        if (index && nodesArray[index]->frequency < nodesArray[parent]->frequency) {
+            swap(nodesArray[index], nodesArray[parent]);
             heapifyUp(parent);
         }
     }
 
 public:
-    MinHeap(int capacity) {
-        this->capacity = capacity;
-        this->heapSize = 0;
-        this->heapArray = new Node*[capacity];
+    MinPriorityQueue(int maxSize) {
+        this->maxSize = maxSize;
+        this->currentSize = 0;
+        this->nodesArray = new TreeNode*[maxSize];
     }
 
-    ~MinHeap() {
-        delete[] heapArray;
+    ~MinPriorityQueue() {
+        delete[] nodesArray;
     }
 
-    void push(Node* node) {
-        if (heapSize == capacity) {
+    void insert(TreeNode* node) {
+        if (currentSize == maxSize) {
             cout << "Heap overflow!" << endl;
             return;
         }
-        heapArray[heapSize] = node;
-        heapifyUp(heapSize);
-        heapSize++;
+        nodesArray[currentSize] = node;
+        heapifyUp(currentSize);
+        currentSize++;
     }
 
-    Node* pop() {
-        if (heapSize == 0) return nullptr;
+    TreeNode* extractMin() {
+        if (currentSize == 0) return nullptr;
 
-        Node* top = heapArray[0];
-        heapArray[0] = heapArray[--heapSize];
+        TreeNode* minNode = nodesArray[0];
+        nodesArray[0] = nodesArray[--currentSize];
         heapifyDown(0);
 
-        return top;
+        return minNode;
     }
 
     int size() const {
-        return heapSize;
+        return currentSize;
     }
 
     bool isEmpty() const {
-        return heapSize == 0;
+        return currentSize == 0;
     }
 };
 
 // Function to print the Huffman Codes
-void printCodes(Node* root, string str) {
+void displayHuffmanCodes(TreeNode* root, string code) {
     if (!root) return;
 
-    if (!root->left && !root->right) {
-        cout << root->data << ": " << str << endl;
+    // If it's a leaf node, print the character and its corresponding Huffman code
+    if (!root->leftChild && !root->rightChild) {
+        cout << root->character << ": " << code << endl;
     }
 
-    printCodes(root->left, str + "0");
-    printCodes(root->right, str + "1");
+    displayHuffmanCodes(root->leftChild, code + "0");
+    displayHuffmanCodes(root->rightChild, code + "1");
 }
 
 // Function to build the Huffman Tree
-Node* buildHuffmanTree(char data[], int freq[], int size) {
-    MinHeap minHeap(size);
+TreeNode* createHuffmanTree(char characters[], int frequencies[], int count) {
+    MinPriorityQueue minHeap(count);
 
-    for (int i = 0; i < size; ++i) {
-        minHeap.push(new Node(data[i], freq[i]));
+    // Step 1: Create a leaf node for each character and add it to the min heap
+    for (int i = 0; i < count; ++i) {
+        minHeap.insert(new TreeNode(characters[i], frequencies[i]));
     }
 
+    // Step 2: Build the tree by repeatedly extracting the two nodes with the lowest frequency
     while (minHeap.size() > 1) {
-        Node* left = minHeap.pop();
-        Node* right = minHeap.pop();
+        // Extract two nodes with the lowest frequency
+        TreeNode* left = minHeap.extractMin();
+        TreeNode* right = minHeap.extractMin();
 
-        Node* top = new Node('$', left->freq + right->freq);
-        top->left = left;
-        top->right = right;
+        // Create a new internal node with the combined frequency of the two nodes
+        TreeNode* internalNode = new TreeNode('$', left->frequency + right->frequency);
+        internalNode->leftChild = left;
+        internalNode->rightChild = right;
 
-        minHeap.push(top);
+        // Add the internal node back to the min heap
+        minHeap.insert(internalNode);
     }
 
-    return minHeap.pop();
+    // The root node of the Huffman tree
+    return minHeap.extractMin();
 }
 
 // Main function to generate Huffman Codes
-void HuffmanCodes(char data[], int freq[], int size) {
-    Node* root = buildHuffmanTree(data, freq, size);
-    printCodes(root, "");
+void generateHuffmanCodes(char characters[], int frequencies[], int count) {
+    TreeNode* root = createHuffmanTree(characters, frequencies, count);
+    displayHuffmanCodes(root, "");
 }
 
 // Driver code
 int main() {
-    char arr[] = { 'a', 'b', 'c', 'd', 'e', 'f' };
-    int freq[] = { 5, 9, 12, 13, 16, 45 };
-    int size = sizeof(arr) / sizeof(arr[0]);
+    char characters[] = { 'a', 'b', 'c', 'd', 'e', 'f' };
+    int frequencies[] = { 5, 9, 12, 13, 16, 45 };
+    int count = sizeof(characters) / sizeof(characters[0]);
 
-    HuffmanCodes(arr, freq, size);
+    generateHuffmanCodes(characters, frequencies, count);
 
     return 0;
 }
